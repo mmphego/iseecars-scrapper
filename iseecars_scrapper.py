@@ -538,8 +538,8 @@ class IseeCars:
         def uncollapse_all(class_name):
             for element in class_elements(class_name):
                 try:
-                    element.click()
                     time.sleep(random_time())
+                    element.click()
                 except BaseException:
                     pass
             self.logger.info("Uncollapsed all headings.")
