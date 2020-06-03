@@ -300,7 +300,28 @@ def setup_proxy(
         "http": f"http://{proxy_username}:{proxy_password}@{proxy_host}:{proxy_port}",
         "https": f"https://{proxy_username}:{proxy_password}@{proxy_host}:{proxy_port}",
     }
-    return proxies
+
+    msg = "Issues with handling proxies. Investigate or try different proxy auth."
+    try:
+        assert check_proxies(proxies), msg
+        return proxies
+    except Exception:
+        logger.warning(msg)
+        raise
+
+
+def check_proxies(proxies):
+    try:
+        url = "https://httpbin.org/ip"
+        response = requests.get(url, proxies=proxies)
+        assert response.status_code == 200
+        response = response.json()
+        return all(
+            [response["origin"] in proxies for proxies in list(proxies.values())]
+        )
+    except Exception as err:
+        logger.error(str(err))
+        return
 
 
 class DataStructure:
@@ -315,7 +336,14 @@ class MissingPageSource(Exception):
 
 class IseeCars:
     def __init__(
-        self, username, password, vin, proxies, headless=True, log_level="INFO", timeout=60
+        self,
+        username,
+        password,
+        vin,
+        proxies,
+        headless=True,
+        log_level="INFO",
+        timeout=60,
     ):
         self.logger = logger
         self.logger.level(log_level.upper())
@@ -499,8 +527,55 @@ class IseeCars:
 
     def navigate_site(self):
         """Navigate through the website"""
+
+        self.driver.get(self._url_vin)
+        vin_field = "#vin-field"
+        vin_field = (
+            vin_field if self._check_element(By.CSS_SELECTOR, vin_field) else None
+        )
+        assert isinstance(vin_field, str)
+        time.sleep(random_time())
+
+        _driver = self._send_keys_by_selector(
+            self.driver, "css_selector", vin_field, self._vin, enter_key=True
+        )
+        time.sleep(random_time())
+        self.logger.info("Entered vin number and accessing page")
+
+        while not self._page_loaded(self.driver):
+            time.sleep(random_time())
+            if self._page_loaded(self.driver):
+                break
+        return self._page_loaded(self.driver)
+
+    def get_vehicle_details(self):
+        """Get vehicle details.
+
+        Raises:
+            MissingPageSource: If missing page source, raises error and closes browser
+        """
         class_element = self.driver.find_element_by_class_name
         class_elements = self.driver.find_elements_by_class_name
+
+        def table_data(table):
+            """Parses a html segment started with tag <table> followed
+            by multiple <tr> (table rows) and inner <td> (table data) tags.
+            It returns a list of rows with inner columns.
+            Accepts only one <th> (table header/data) in the first row.
+            """
+
+            def rowgetDataText(tr, coltag="td"):  # td (data) or th (header)
+                return [td.get_text(strip=True) for td in tr.find_all(coltag)]
+
+            rows = []
+            trs = table.find_all("tr")
+            headerow = rowgetDataText(trs[0], "th")
+            if headerow:  # if there is a header row include first
+                rows.append(headerow)
+                trs = trs[1:]
+            for tr in trs:  # for every table row
+                rows.append(rowgetDataText(tr, "td"))  # data row
+            return rows
 
         def get_element_contents(element_1, element_2, ret_dict=False):
             if not ret_dict:
@@ -530,29 +605,14 @@ class IseeCars:
                 adict[key] = val
             return adict
 
-        self.driver.get(self._url_vin)
-        vin_field = "#vin-field"
-        vin_field = (
-            vin_field if self._check_element(By.CSS_SELECTOR, vin_field) else None
-        )
-        assert isinstance(vin_field, str)
-        time.sleep(random_time())
-
-        _driver = self._send_keys_by_selector(
-            self.driver, "css_selector", vin_field, self._vin, enter_key=True
-        )
-        time.sleep(random_time())
-        self.logger.info("Entered vin number and accessing page")
-
-        while not self._page_loaded(self.driver):
-            time.sleep(random_time())
-            if self._page_loaded(self.driver):
-                break
-
         uncollapse_all("id133_vntbl_outer")
 
         update_data_structure("h2")
 
+        # Title (VIN and model)
+        self.data_structure["Title"] = [i.strip() for i in self.page_source.find("div", attrs={"id":"vin-head"}).find('h1') if getattr(i, 'name', None) != 'br']
+
+        [i.strip() for i in a.contents if getattr(i, 'name', None) != 'br']
         # iVIN Report Summary
         self.data_structure["iVIN Report Summary"] = class_element(
             "vin-summary.id133_vntbl_outer"
@@ -589,29 +649,57 @@ class IseeCars:
         ).find_element_by_class_name("id137_table")
         self.data_structure["Mileage Analysis"] = results.text.split("\n")
 
-    def get_vehicle_details(self):
-        """Get vehicle details.
+        #  Owner's Manual
+        _manuals = self.driver.find_element_by_id("vin-manuals-panel")
+        manuals = _manuals.text.split("\n")
+        links = _manuals.find_elements_by_class_name("ga-bound")
 
-        Raises:
-            MissingPageSource: If missing page source, raises error and closes browser
-        """
+        count = 0
+        manual_dict = {}
+        for manual, link in zip(manuals, links):
+            count += 1
+            manual_dict[f"link_{count}"] = " : ".join(
+                [manual, link.get_attribute("href")]
+            )
+        self.data_structure["Owner's Manual"] = manual_dict
 
-        vin_number = WebDriverWait(self.driver, self._timeout).until(
-            EC.presence_of_element_located((By.CLASS_NAME, self._vin_number_class))
+        # Selling This Vehicle?
+        table = self.page_source.find(
+            lambda tag: tag.name == "table"
+            and tag.has_attr("id")
+            and tag["id"] == "table-pricing-choices-slider"
         )
-        self.data_structure["VIN Number"] = vin_number.text.split()[-1]
+        self.data_structure["Selling This Vehicle?"] = [
+            i for i in table_data(table) if len(i) > 1
+        ]
+        #  Best Times to Buy
+        buy_time = self.page_source.find_all(
+            "div", attrs={"id": "vin-besttimetobuy-panel"}
+        )[0].p.text.strip()
+        self.data_structure["Best Times to Buy"] = buy_time
+
+        # Projected Depreciation
+        notes = [
+            i.p.text.strip()
+            for i in self.page_source.find_all(
+                "div", attrs={"id": "vin-deprication-panel"}
+            )
+            if i.p
+        ]
+        table = self.page_source.find('div', attrs={"id": "vin-deprication-panel"}).find('table', attrs={'class': 'id136_odev'})
+        table = [i for i in table_data(table) if len(i)>1]
+        self.data_structure["Projected Depreciation"] = {"notes": notes, "table": table}
+
 
     def get_json(self):
         """Print output as json."""
         self.open_site()
         self.login()
-        self.navigate_site()
+        if self.navigate_site():
+            self.get_vehicle_details()
+        self.logout()
 
-        import IPython
-
-        globals().update(locals())
-        IPython.embed(header="Python Debugger")
-        iseecars.logout()
+        return json.dumps(self.data_structure, sort_keys=True)
 
     def close_session(self):
         """Close browser and cleanup"""
@@ -679,7 +767,7 @@ if __name__ == "__main__":
     headless = args.get("headless")
     iseecars = IseeCars(username, password, vin, proxies, headless)
     try:
-        iseecars.get_json()
+        print(iseecars.get_json())
     except Exception:
         logger.exception("Error happened!!!")
         iseecars.close_session()
