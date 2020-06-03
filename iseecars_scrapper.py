@@ -293,56 +293,20 @@ def get_random_useragent() -> dict:
     return user_agent
 
 
-def setup_proxy(args) -> dict:
-    proxy = ProxySettings(**args)
-    proxies = {}
-    if proxy.username:
-        proxies = {
-            # "http": f"socks5://{proxy.username}:{proxy.password}@{proxy.host}:{proxy.port}",
-            # "https": f"socks5://{proxy.username}:{proxy.password}@{proxy.host}:{proxy.port}",
-            "http": f"http://{proxy.username}:{proxy.password}@{proxy.host}:{proxy.port}",
-            "https": f"https://{proxy.username}:{proxy.password}@{proxy.host}:{proxy.port}",
-        }
+def setup_proxy(
+    proxy_host: str, proxy_port: str, proxy_username: str, proxy_password: str
+) -> dict:
+    proxies = {
+        "http": f"http://{proxy_username}:{proxy_password}@{proxy_host}:{proxy_port}",
+        "https": f"https://{proxy_username}:{proxy_password}@{proxy_host}:{proxy_port}",
+    }
     return proxies
-
-
-class ProxySettings:
-    """
-    Proxy contains information about proxy type and necessary proxy settings.
-
-    Attributes:
-        host (str): host
-        password (str): password
-        port (str): port
-        username (str): username
-    """
-
-    def __init__(self, **kwargs):
-        self.host = kwargs.get("host", None)
-        self.port = kwargs.get("port", None)
-        self.username = kwargs.get("username", None)
-        self.password = kwargs.get("password", None)
-        self.seleniumwire = kwargs.get("alt_proxy", False)
-
-    def __repr__(self):
-        return repr(
-            "<{}(host='{}', port='{}', username='{}', password='{}') at 0x{:x}>".format(
-                self.__class__.__name__,
-                self.host,
-                self.port,
-                self.username,
-                self.password,
-                id(self),
-            )
-        )
 
 
 class DataStructure:
     @staticmethod
     def asdict():
-        return {
-            "VIN Number": "",
-        }
+        return {}
 
 
 class MissingPageSource(Exception):
@@ -350,29 +314,29 @@ class MissingPageSource(Exception):
 
 
 class IseeCars:
-    def __init__(self, log_level="INFO", timeout=60, **kwargs):
+    def __init__(
+        self, username, password, vin, proxies, headless, log_level="INFO", timeout=60
+    ):
         self.logger = logger
         self.logger.level(log_level.upper())
-        self.data_structure = DataStructure.asdict()
+        self._password = password
+        assert password
+        self._proxies = proxies
+        self._username = username
+        assert username
+        self._vin = vin
+        assert vin
         self._timeout = timeout
+        self._headless = headless
+        self.check_kwargs()
 
-        self.check_kwargs(kwargs)
+    def check_kwargs(self):
 
-    def check_kwargs(self, kwargs):
-        self.proxy = None
-        if kwargs.get("proxy_host"):
-            self.proxy = ProxySettings(**kwargs)
-        self._closed = False
-        self._page_source = None
-        self._save_page = kwargs.get("save_page")
-        self._to_json = kwargs.get("to_json")
+        self.data_structure = DataStructure.asdict()
         self._url_login = "https://www.iseecars.com/user/login"
         self._url_vin = "https://www.iseecars.com/vin"
-        self._password = kwargs.get("password")
-        self._username = kwargs.get("username")
-        self.headless = kwargs.get("headless")
-        self.json_out = kwargs.get("json")
-        self.vin = kwargs.get("vin")
+        self._closed = False
+        self._page_source = None
 
     def _disable_Images_Firefox_Profile(self):
         """Summary
@@ -434,39 +398,29 @@ class IseeCars:
     def open_site(self):
         """Simple selenium webdriver to open a known url"""
         options = Options()
-        options.headless = self.headless
+        options.headless = self._headless
         profile = None
 
-        if self.proxy:
-            if self.proxy.seleniumwire:
-                self.logger.info(
-                    "Accessing URL using alternative proxy settings: {}", self.proxy
-                )
-                proxy_settings = f"http://{self.proxy.username}:{self.proxy.password}@{self.proxy.host}:{self.proxy.port}"
-                seleniumwire_options = {
-                    "proxy": {
-                        "http": proxy_settings,
-                        "https": proxy_settings,
-                        "socks": proxy_settings,
-                        "no_proxy": "localhost,127.0.0.1",
-                    }
-                }
-                self.driver = wirewebdriver.Firefox(
-                    executable_path=firefox_manager.GeckoDriverManager().install(),
-                    options=options,
-                    seleniumwire_options=seleniumwire_options,
-                    timeout=self._timeout,
-                )
-            else:
-                self.logger.info("Accessing URL using proxy settings: {}", self.proxy)
-                profile = self._setup_proxy()
-                self.driver = webdriver.Firefox(
-                    executable_path=firefox_manager.GeckoDriverManager().install(),
-                    options=options,
-                    firefox_profile=profile,
-                    timeout=self._timeout,
-                )
+        if isinstance(self._proxies, dict):
+            self.logger.info("Accessing URL using alternative proxy settings")
+            self._proxies["no_proxy"] = "localhost,127.0.0.1"
+            seleniumwire_options = {"proxy": self._proxies}
 
+            self.driver = wirewebdriver.Firefox(
+                executable_path=firefox_manager.GeckoDriverManager().install(),
+                options=options,
+                seleniumwire_options=seleniumwire_options,
+                timeout=self._timeout,
+            )
+        # else:
+        #     self.logger.info("Accessing URL using proxy settings: {}", self.proxy)
+        #     profile = self._setup_proxy()
+        #     self.driver = webdriver.Firefox(
+        #         executable_path=firefox_manager.GeckoDriverManager().install(),
+        #         options=options,
+        #         firefox_profile=profile,
+        #         timeout=self._timeout,
+        #     )
         else:
             self.driver = webdriver.Firefox(
                 executable_path=firefox_manager.GeckoDriverManager().install(),
@@ -476,7 +430,6 @@ class IseeCars:
             )
 
         try:
-            self.logger.info(f"Accessing: {self._url_login}")
             self.driver.get(self._url_login)
             self.logger.info(f"Successfully opened: {self._url_login}")
         except Exception:
@@ -538,6 +491,7 @@ class IseeCars:
             submit_button = "//button[@type='submit']"
             self.driver.find_element_by_xpath(submit_button).click()
             time.sleep(random_time())
+            self.logger.info("Successfully logged in!")
             return self._page_loaded(self.driver)
 
     def logout(self):
@@ -545,6 +499,37 @@ class IseeCars:
 
     def navigate_site(self):
         """Navigate through the website"""
+        class_element = self.driver.find_element_by_class_name
+        class_elements = self.driver.find_elements_by_class_name
+
+        def get_element_contents(element_1, element_2, ret_dict=False):
+            if not ret_dict:
+                return class_element(element_1).find_elements_by_class_name(element_2)
+            else:
+                text = class_element(element_1).text
+                value = class_element(element_1).find_elements_by_class_name(element_2)
+                return text, value
+
+        def uncollapse_all(class_name):
+            for element in class_elements(class_name):
+                try:
+                    element.click()
+                    time.sleep(random_time() / 2)
+                except BaseException:
+                    pass
+
+        def update_data_structure(element):
+            for i in self.page_source.find_all(element):
+                self.data_structure[re.sub(r"\s+", " ", i.text.strip())] = None
+
+        def list_to_dict(results):
+            adict = {}
+            for i in results:
+                key, *val = i.text.split(": ")
+                val = " ".join(val)
+                adict[key] = val
+            return adict
+
         self.driver.get(self._url_vin)
         vin_field = "#vin-field"
         vin_field = (
@@ -554,24 +539,55 @@ class IseeCars:
         time.sleep(random_time())
 
         _driver = self._send_keys_by_selector(
-            self.driver, "css_selector", vin_field, self.vin, enter_key=True
+            self.driver, "css_selector", vin_field, self._vin, enter_key=True
         )
         time.sleep(random_time())
-        return self._page_loaded(self.driver)
-        # driver.find_element_by_link_text("Log Out").click()
+        self.logger.info("Entered vin number and accessing page")
 
-    def save_page(self):
-        if not self._save_page:
-            return
-        page_path = f"saved_pages/{self.vin}"
-        if not os.path.exists(page_path):
-            os.makedirs(page_path)
+        while not self._page_loaded(self.driver):
+            time.sleep(random_time())
+            if self._page_loaded(self.driver):
+                break
 
-        page_file = f"{page_path}/index.html"
-        with open(page_file, "w") as f:
-            f.write(self.driver.page_source)
+        uncollapse_all("id133_vntbl_outer")
 
-        return True if os.path.isfile(page_file) else shutil.rmtree(page_path)
+        update_data_structure("h2")
+
+        # iVIN Report Summary
+        self.data_structure["iVIN Report Summary"] = class_element(
+            "vin-summary.id133_vntbl_outer"
+        ).text.split("\n")[1:]
+
+        # Key Specs Table
+        results = get_element_contents("align-top.id134_vntbl", "id135_vntbl_col")
+        self.data_structure["Key Specs"] = list_to_dict(results)
+
+        # Safety Ratings
+        results = self.driver.find_element_by_id("vin-safety-panel").text.split("\n")
+        ratings = self.driver.find_element_by_id(
+            "vin-safety-panel"
+        ).find_elements_by_class_name("stars-sprite-bottom-img")
+        self.data_structure["Safety Ratings"] = {
+            result: rating.get_attribute("style")
+            for result, rating in zip(results, ratings)
+        }
+
+        # Features
+        self.data_structure["Features"] = [
+            feature.text
+            for feature in class_elements("id135_vntbl_col.check.capitalize")
+        ]
+
+        # Market Value & Pricing Info
+        self.data_structure["Market Value & Pricing Info"] = class_element(
+            "id137_table"
+        ).text
+
+        # Mileage Analysis
+        results = self.driver.find_element_by_id(
+            "vin-condition-panel"
+        ).find_element_by_class_name("id137_table")
+        self.data_structure["Mileage Analysis"] = results.text.split("\n")
 
     def get_vehicle_details(self):
         """Get vehicle details.
@@ -585,30 +601,17 @@ class IseeCars:
         )
         self.data_structure["VIN Number"] = vin_number.text.split()[-1]
 
-    @property
-    def data_as_json(self):
-        """Output in the form of json file"""
-        data = (
-            str(self.data_structure)
-            if isinstance(self.data_structure, dict)
-            else self.data_structure
-        )
-        return json.dumps(data, sort_keys=True)
+    def get_json(self):
+        """Print output as json."""
+        self.open_site()
+        self.login()
+        self.navigate_site()
 
-    def data_json_to_file(self, filename="data_structure.json"):
-        """Save data structure as json file
+        import IPython
 
-        Args:
-            filename (str, optional): Filename to save as.
-        """
-        self.logger.info("Writing data to json")
-        data = (
-            str(self.data_structure)
-            if isinstance(self.data_structure, dict)
-            else self.data_structure
-        )
-        with open(filename, "w") as json_file:
-            json.dump(data, json_file)
+        globals().update(locals())
+        IPython.embed(header="Python Debugger")
+        iseecars.logout()
 
     def close_session(self):
         """Close browser and cleanup"""
@@ -651,9 +654,7 @@ def arg_parser():
         "--to-json", action="store_true", help="Save webpage content to json"
     )
     parser.add_argument(
-        "--headless",
-        action="store_true",
-        help="Open browser [Debugging mode].",
+        "--headless", action="store_true", help="Open browser [Debugging mode].",
     )
     args = vars(parser.parse_args())
     return args
@@ -662,16 +663,26 @@ def arg_parser():
 if __name__ == "__main__":
     args = arg_parser()
     useragent = get_random_useragent()
-    proxies = setup_proxy(args)
-    iseecars = IseeCars(**args)
+    proxy_host = args.get("proxy_host")
+    proxy_port = args.get("proxy_port")
+    proxy_username = args.get("proxy_username")
+    proxy_password = args.get("proxy_password")
+    proxies = (
+        setup_proxy(proxy_host, proxy_port, proxy_username, proxy_password)
+        if args.get("proxy_host")
+        else None
+    )
+
+    username = args.get("username")
+    password = args.get("password")
+    vin = args.get("vin")
+    headless = args.get("headless")
+    iseecars = IseeCars(username, password, vin, proxies, headless)
     try:
-        iseecars.open_site()
-        iseecars.login()
-        iseecars.navigate_site()
-        iseecars.save_page()
-        iseecars.logout()
-    except Exception as err:
-        logger.exception("Something happened.")
+        iseecars.get_json()
+    except Exception:
+        logger.exception("Error happened!!!")
         iseecars.close_session()
-    finally:
+        raise
+    else:
         iseecars.close_session()
