@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+import pprint
 import pathlib
 import argparse
 import json
@@ -30,7 +31,7 @@ def random_time(start=1, end=5):
     return random.randint(start, end)
 
 
-def get_random_useragent() -> list:
+def get_random_useragent() -> str:
     try:
         url = "http://51.158.74.109/useragents/?format=json"
         r = requests.get(url=url)
@@ -330,7 +331,8 @@ class DataStructure:
         return {}
 
 
-class MissingPageSource(Exception):
+class InvalidVIN(Exception):
+    """No record for the VIN"""
     pass
 
 
@@ -366,84 +368,24 @@ class IseeCars:
         self._closed = False
         self._page_source = None
 
-    def _disable_Images_Firefox_Profile(self):
-        """Summary
-
-        Returns:
-            Object: FirefoxProfile
-        """
-        # get the Firefox profile object
-        firefoxProfile = webdriver.FirefoxProfile()
-        # Disable images
-        firefoxProfile.set_preference("permissions.default.image", 2)
-        # Disable Flash
-        firefoxProfile.set_preference(
-            "dom.ipc.plugins.enabled.libflashplayer.so", "false"
-        )
-        # Set the modified profile while creating the browser object
-        return firefoxProfile
-
-    def _setup_proxy(self):
-        """Simplified Firefox Proxy settings"""
-        firefox_profile = webdriver.FirefoxProfile()
-        # Direct = 0, Manual = 1, PAC = 2, AUTODETECT = 4, SYSTEM = 5
-        firefox_profile.set_preference("network.proxy.type", 1)
-        firefox_profile.set_preference("signon.autologin.proxy", True)
-        firefox_profile.set_preference("network.websocket.enabled", False)
-        firefox_profile.set_preference("network.proxy.http", self.proxy.host)
-        firefox_profile.set_preference("network.proxy.http_port", int(self.proxy.port))
-        firefox_profile.set_preference("network.proxy.ssl", self.proxy.host)
-        firefox_profile.set_preference("network.proxy.ssl_port", int(self.proxy.port))
-        firefox_profile.set_preference("network.proxy.socks", self.proxy.host)
-        firefox_profile.set_preference("network.proxy.socks_port", int(self.proxy.port))
-        # firefox_profile.set_preference("network.automatic-ntlm-auth.allow-proxies", False)
-        # firefox_profile.set_preference("network.negotiate-auth.allow-proxies", False)
-        firefox_profile.set_preference(
-            "network.proxy.no_proxies_on", "localhost, 127.0.0.1"
-        )
-        # Disable images for website to load quicker
-        firefox_profile.set_preference("permissions.default.image", 2)
-        # Disable Flash for website to load quicker
-        firefox_profile.set_preference(
-            "dom.ipc.plugins.enabled.libflashplayer.so", "false"
-        )
-        if self.proxy.username and self.proxy.password:
-            firefox_profile.set_preference(
-                "network.proxy.socks_username", self.proxy.username
-            )
-            firefox_profile.set_preference(
-                "network.proxy.socks_password", self.proxy.password
-            )
-            firefox_profile.set_preference(
-                "network.proxy.https_username", self.proxy.username
-            )
-            firefox_profile.set_preference(
-                "network.proxy.https_password", self.proxy.password
-            )
-        firefox_profile.update_preferences()
-        return firefox_profile
-
     def open_site(self):
         """Simple selenium webdriver to open a known url"""
         options = Options()
         options.headless = self._headless
 
-        profile = webdriver.FirefoxProfile()
-        import IPython; globals().update(locals()); IPython.embed(header='Python Debugger')
-        profile.set_preference("general.useragent.override", get_random_useragent())
-
         if isinstance(self._proxies, dict):
             self.logger.info("Accessing URL using alternative proxy settings")
             self._proxies["no_proxy"] = "localhost,127.0.0.1"
             seleniumwire_options = {"proxy": self._proxies}
+            profile = wirewebdriver.FirefoxProfile()
+            profile.set_preference("general.useragent.override", get_random_useragent())
 
             self.driver = wirewebdriver.Firefox(
                 executable_path=firefox_manager.GeckoDriverManager().install(),
                 options=options,
-                profile=profile,
+                firefox_profile=profile,
                 seleniumwire_options=seleniumwire_options,
                 timeout=self._timeout,
-
             )
         # else:
         #     self.logger.info("Accessing URL using proxy settings: {}", self.proxy)
@@ -455,10 +397,12 @@ class IseeCars:
         #         timeout=self._timeout,
         #     )
         else:
+            profile = webdriver.FirefoxProfile()
+            profile.set_preference("general.useragent.override", get_random_useragent())
+
             self.driver = webdriver.Firefox(
                 executable_path=firefox_manager.GeckoDriverManager().install(),
                 options=options,
-                profile=profile,
                 firefox_profile=profile,
                 timeout=self._timeout,
             )
@@ -535,41 +479,38 @@ class IseeCars:
         """Navigate through the website"""
 
         self.driver.get(self._url_vin)
+        self.logger.info(f"Redirected to URL: {self._url_vin!r}")
         vin_field = "#vin-field"
         vin_field = (
             vin_field if self._check_element(By.CSS_SELECTOR, vin_field) else None
         )
         assert isinstance(vin_field, str)
         time.sleep(random_time())
+        import IPython; globals().update(locals()); IPython.embed(header='Python Debugger')
 
         _driver = self._send_keys_by_selector(
-            self.driver, "css_selector", vin_field, self._vin, enter_key=True
+            self.driver, "css_selector", vin_field, "WF0DXXGAKDFK41488", enter_key=True
         )
+
         time.sleep(random_time())
         self.logger.info("Entered vin number and accessing page")
+        if self.page_source.find('div', attrs={'class': "vin-not-found-container"}):
+            self.logger.error(self.page_source.find('div', attrs={'class': "vin-not-found-container"}).text.strip())
+            raise InvalidVIN
 
         while not self._page_loaded(self.driver):
             time.sleep(random_time())
             if self._page_loaded(self.driver):
                 break
+
         return self._page_loaded(self.driver)
 
     def get_vehicle_details(self):
-        """Get vehicle details.
-
-        Raises:
-            MissingPageSource: If missing page source, raises error and closes browser
-        """
+        """Get vehicle details."""
         class_element = self.driver.find_element_by_class_name
         class_elements = self.driver.find_elements_by_class_name
 
         def table_data(table):
-            """Parses a html segment started with tag <table> followed
-            by multiple <tr> (table rows) and inner <td> (table data) tags.
-            It returns a list of rows with inner columns.
-            Accepts only one <th> (table header/data) in the first row.
-            """
-
             def rowgetDataText(tr, coltag="td"):  # td (data) or th (header)
                 return [td.get_text(strip=True) for td in tr.find_all(coltag)]
 
@@ -598,6 +539,7 @@ class IseeCars:
                     time.sleep(random_time() / 2)
                 except BaseException:
                     pass
+            self.logger.info("Uncollapsed all headings.")
 
         def update_data_structure(element):
             for i in self.page_source.find_all(element):
@@ -615,10 +557,16 @@ class IseeCars:
 
         update_data_structure("h2")
 
-        import IPython; globals().update(locals()); IPython.embed(header='Python Debugger')
+        self.logger.info("Updating data structure")
         # Title (VIN and model)
         try:
-            self.data_structure["Title"] = [i.strip() for i in self.page_source.find("div", attrs={"id":"vin-head"}).find('h1') if getattr(i, 'name', None) != 'br']
+            self.data_structure["Title"] = [
+                i.strip()
+                for i in self.page_source.find("div", attrs={"id": "vin-head"}).find(
+                    "h1"
+                )
+                if getattr(i, "name", None) != "br"
+            ]
         except Exception:
             self.logger.error("Failed to update 'Title' data structure")
 
@@ -626,8 +574,8 @@ class IseeCars:
         key = "iVIN Report Summary"
         try:
             self.data_structure[key] = class_element(
-            "vin-summary.id133_vntbl_outer"
-        ).text.split("\n")[1:]
+                "vin-summary.id133_vntbl_outer"
+            ).text.split("\n")[1:]
         except Exception:
             self.logger.error(f"Failed to update {key!r} data structure")
 
@@ -642,14 +590,16 @@ class IseeCars:
         # Safety Ratings
         key = "Safety Ratings"
         try:
-            results = self.driver.find_element_by_id("vin-safety-panel").text.split("\n")
-        ratings = self.driver.find_element_by_id(
-            "vin-safety-panel"
-        ).find_elements_by_class_name("stars-sprite-bottom-img")
-        self.data_structure[key] = {
-            result: rating.get_attribute("style")
-            for result, rating in zip(results, ratings)
-        }
+            results = self.driver.find_element_by_id("vin-safety-panel").text.split(
+                "\n"
+            )
+            ratings = self.driver.find_element_by_id(
+                "vin-safety-panel"
+            ).find_elements_by_class_name("stars-sprite-bottom-img")
+            self.data_structure[key] = {
+                result: rating.get_attribute("style")
+                for result, rating in zip(results, ratings)
+            }
         except Exception:
             self.logger.error(f"Failed to update {key!r} data structure")
 
@@ -657,18 +607,16 @@ class IseeCars:
         key = "Features"
         try:
             self.data_structure[key] = [
-            feature.text
-            for feature in class_elements("id135_vntbl_col.check.capitalize")
-        ]
+                feature.text
+                for feature in class_elements("id135_vntbl_col.check.capitalize")
+            ]
         except Exception:
             self.logger.error(f"Failed to update {key!r} data structure")
 
         # Market Value & Pricing Info
         key = "Market Value & Pricing Info"
         try:
-            self.data_structure[key] = class_element(
-            "id137_table"
-        ).text
+            self.data_structure[key] = class_element("id137_table").text
         except Exception:
             self.logger.error(f"Failed to update {key!r} data structure")
 
@@ -676,7 +624,7 @@ class IseeCars:
         key = "Mileage Analysis"
         try:
             results = self.driver.find_element_by_id(
-            "vin-condition-panel"
+                "vin-condition-panel"
             ).find_element_by_class_name("id137_table")
             self.data_structure[key] = results.text.split("\n")
         except Exception:
@@ -704,13 +652,11 @@ class IseeCars:
         key = "Selling This Vehicle?"
         try:
             table = self.page_source.find(
-            lambda tag: tag.name == "table"
-            and tag.has_attr("id")
-            and tag["id"] == "table-pricing-choices-slider"
+                lambda tag: tag.name == "table"
+                and tag.has_attr("id")
+                and tag["id"] == "table-pricing-choices-slider"
             )
-            self.data_structure[key] = [
-                i for i in table_data(table) if len(i) > 1
-            ]
+            self.data_structure[key] = [i for i in table_data(table) if len(i) > 1]
         except Exception:
             self.logger.error(f"Failed to update {key!r} data structure")
 
@@ -718,7 +664,7 @@ class IseeCars:
         key = "Best Times to Buy"
         try:
             buy_time = self.page_source.find_all(
-            "div", attrs={"id": "vin-besttimetobuy-panel"}
+                "div", attrs={"id": "vin-besttimetobuy-panel"}
             )[0].p.text.strip()
             self.data_structure[key] = buy_time
         except Exception:
@@ -728,18 +674,21 @@ class IseeCars:
         key = "Projected Depreciation"
         try:
             notes = [
-            i.p.text.strip()
-            for i in self.page_source.find_all(
-                "div", attrs={"id": "vin-deprication-panel"}
-            )
-            if i.p
+                i.p.text.strip()
+                for i in self.page_source.find_all(
+                    "div", attrs={"id": "vin-deprication-panel"}
+                )
+                if i.p
             ]
-            table = self.page_source.find('div', attrs={"id": "vin-deprication-panel"}).find('table', attrs={'class': 'id136_odev'})
-            table = [i for i in table_data(table) if len(i)>1]
+            table = self.page_source.find(
+                "div", attrs={"id": "vin-deprication-panel"}
+            ).find("table", attrs={"class": "id136_odev"})
+            table = [i for i in table_data(table) if len(i) > 1]
             self.data_structure[key] = {"notes": notes, "table": table}
         except Exception:
             self.logger.error(f"Failed to update {key!r} data structure")
 
+        self.logger.info("Updated data structure")
 
     def get_json(self):
         """Print output as json."""
@@ -749,11 +698,11 @@ class IseeCars:
             self.get_vehicle_details()
         self.logout()
 
-        return json.dumps(self.data_structure, sort_keys=True)
+        return json.dumps(self.data_structure, indent=4, sort_keys=True)
 
     def close_session(self):
         """Close browser and cleanup"""
-        if not self._closed:
+        if not self._closed and hasattr(self, "driver"):
             self.logger.info("Closing the browser...")
             self.driver.close()
             self.driver.quit()
