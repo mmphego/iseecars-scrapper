@@ -315,7 +315,7 @@ class MissingPageSource(Exception):
 
 class IseeCars:
     def __init__(
-        self, username, password, vin, proxies, headless, log_level="INFO", timeout=60
+        self, username, password, vin, proxies, headless=True, log_level="INFO", timeout=60
     ):
         self.logger = logger
         self.logger.level(log_level.upper())
