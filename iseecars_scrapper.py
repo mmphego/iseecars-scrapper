@@ -611,85 +611,128 @@ class IseeCars:
 
         import IPython; globals().update(locals()); IPython.embed(header='Python Debugger')
         # Title (VIN and model)
-        self.data_structure["Title"] = [i.strip() for i in self.page_source.find("div", attrs={"id":"vin-head"}).find('h1') if getattr(i, 'name', None) != 'br']
+        try:
+            self.data_structure["Title"] = [i.strip() for i in self.page_source.find("div", attrs={"id":"vin-head"}).find('h1') if getattr(i, 'name', None) != 'br']
+        except Exception:
+            self.logger.error("Failed to update 'Title' data structure")
 
-        [i.strip() for i in a.contents if getattr(i, 'name', None) != 'br']
         # iVIN Report Summary
-        self.data_structure["iVIN Report Summary"] = class_element(
+        key = "iVIN Report Summary"
+        try:
+            self.data_structure[key] = class_element(
             "vin-summary.id133_vntbl_outer"
         ).text.split("\n")[1:]
+        except Exception:
+            self.logger.error(f"Failed to update {key!r} data structure")
 
         # Key Specs Table
-        results = get_element_contents("align-top.id134_vntbl", "id135_vntbl_col")
-        self.data_structure["Key Specs"] = list_to_dict(results)
+        key = "Key Specs"
+        try:
+            results = get_element_contents("align-top.id134_vntbl", "id135_vntbl_col")
+        self.data_structure[key] = list_to_dict(results)
+        except Exception:
+            self.logger.error(f"Failed to update {key!r} data structure")
 
         # Safety Ratings
-        results = self.driver.find_element_by_id("vin-safety-panel").text.split("\n")
+        key = "Safety Ratings"
+        try:
+            results = self.driver.find_element_by_id("vin-safety-panel").text.split("\n")
         ratings = self.driver.find_element_by_id(
             "vin-safety-panel"
         ).find_elements_by_class_name("stars-sprite-bottom-img")
-        self.data_structure["Safety Ratings"] = {
+        self.data_structure[key] = {
             result: rating.get_attribute("style")
             for result, rating in zip(results, ratings)
         }
+        except Exception:
+            self.logger.error(f"Failed to update {key!r} data structure")
 
         # Features
-        self.data_structure["Features"] = [
+        key = "Features"
+        try:
+            self.data_structure[key] = [
             feature.text
             for feature in class_elements("id135_vntbl_col.check.capitalize")
         ]
+        except Exception:
+            self.logger.error(f"Failed to update {key!r} data structure")
 
         # Market Value & Pricing Info
-        self.data_structure["Market Value & Pricing Info"] = class_element(
+        key = "Market Value & Pricing Info"
+        try:
+            self.data_structure[key] = class_element(
             "id137_table"
         ).text
+        except Exception:
+            self.logger.error(f"Failed to update {key!r} data structure")
 
         # Mileage Analysis
-        results = self.driver.find_element_by_id(
+        key = "Mileage Analysis"
+        try:
+            results = self.driver.find_element_by_id(
             "vin-condition-panel"
-        ).find_element_by_class_name("id137_table")
-        self.data_structure["Mileage Analysis"] = results.text.split("\n")
+            ).find_element_by_class_name("id137_table")
+            self.data_structure[key] = results.text.split("\n")
+        except Exception:
+            self.logger.error(f"Failed to update {key!r} data structure")
 
         #  Owner's Manual
-        _manuals = self.driver.find_element_by_id("vin-manuals-panel")
-        manuals = _manuals.text.split("\n")
-        links = _manuals.find_elements_by_class_name("ga-bound")
+        key = "Owner's Manual"
+        try:
+            _manuals = self.driver.find_element_by_id("vin-manuals-panel")
+            manuals = _manuals.text.split("\n")
+            links = _manuals.find_elements_by_class_name("ga-bound")
 
-        count = 0
-        manual_dict = {}
-        for manual, link in zip(manuals, links):
-            count += 1
-            manual_dict[f"link_{count}"] = " : ".join(
-                [manual, link.get_attribute("href")]
-            )
-        self.data_structure["Owner's Manual"] = manual_dict
+            count = 0
+            manual_dict = {}
+            for manual, link in zip(manuals, links):
+                count += 1
+                manual_dict[f"link_{count}"] = " : ".join(
+                    [manual, link.get_attribute("href")]
+                )
+            self.data_structure[key] = manual_dict
+        except Exception:
+            self.logger.error(f"Failed to update {key!r} data structure")
 
         # Selling This Vehicle?
-        table = self.page_source.find(
+        key = "Selling This Vehicle?"
+        try:
+            table = self.page_source.find(
             lambda tag: tag.name == "table"
             and tag.has_attr("id")
             and tag["id"] == "table-pricing-choices-slider"
-        )
-        self.data_structure["Selling This Vehicle?"] = [
-            i for i in table_data(table) if len(i) > 1
-        ]
+            )
+            self.data_structure[key] = [
+                i for i in table_data(table) if len(i) > 1
+            ]
+        except Exception:
+            self.logger.error(f"Failed to update {key!r} data structure")
+
         #  Best Times to Buy
-        buy_time = self.page_source.find_all(
+        key = "Best Times to Buy"
+        try:
+            buy_time = self.page_source.find_all(
             "div", attrs={"id": "vin-besttimetobuy-panel"}
-        )[0].p.text.strip()
-        self.data_structure["Best Times to Buy"] = buy_time
+            )[0].p.text.strip()
+            self.data_structure[key] = buy_time
+        except Exception:
+            self.logger.error(f"Failed to update {key!r} data structure")
 
         # Projected Depreciation
-        notes = [
+        key = "Projected Depreciation"
+        try:
+            notes = [
             i.p.text.strip()
             for i in self.page_source.find_all(
                 "div", attrs={"id": "vin-deprication-panel"}
             )
             if i.p
-        ]
-        table = self.page_source.find('div', attrs={"id": "vin-deprication-panel"}).find('table', attrs={'class': 'id136_odev'})
-        table = [i for i in table_data(table) if len(i)>1]
-        self.data_structure["Projected Depreciation"] = {"notes": notes, "table": table}
+            ]
+            table = self.page_source.find('div', attrs={"id": "vin-deprication-panel"}).find('table', attrs={'class': 'id136_odev'})
+            table = [i for i in table_data(table) if len(i)>1]
+            self.data_structure[key] = {"notes": notes, "table": table}
+        except Exception:
+            self.logger.error(f"Failed to update {key!r} data structure")
 
 
     def get_json(self):
