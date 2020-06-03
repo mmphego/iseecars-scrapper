@@ -556,6 +556,9 @@ class IseeCars:
                 adict[key] = val
             return adict
 
+        WebDriverWait(self.driver, self._timeout).until(
+            EC.presence_of_element_located((By.ID, "vin-head"))
+        )
         uncollapse_all("id133_vntbl_outer")
 
         update_data_structure("h2")
@@ -762,7 +765,6 @@ if __name__ == "__main__":
         if args.get("proxy_host")
         else None
     )
-
     username = args.get("username")
     password = args.get("password")
     vin = args.get("vin")
