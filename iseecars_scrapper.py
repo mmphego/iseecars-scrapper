@@ -629,7 +629,7 @@ class IseeCars:
         key = "Key Specs"
         try:
             results = get_element_contents("align-top.id134_vntbl", "id135_vntbl_col")
-        self.data_structure[key] = list_to_dict(results)
+            self.data_structure[key] = list_to_dict(results)
         except Exception:
             self.logger.error(f"Failed to update {key!r} data structure")
 
