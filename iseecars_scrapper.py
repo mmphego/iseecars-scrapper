@@ -28,7 +28,7 @@ from webdriver_manager import chrome as chrome_manager, firefox as firefox_manag
 
 
 def random_time(start=1, end=5):
-    return random.randint(start, end)
+    return random.randint(start, end) / 2
 
 
 def get_random_useragent() -> str:
@@ -333,6 +333,7 @@ class DataStructure:
 
 class InvalidVIN(Exception):
     """No record for the VIN"""
+
     pass
 
 
@@ -493,8 +494,10 @@ class IseeCars:
 
         time.sleep(random_time())
         self.logger.info("Entered vin number and accessing page")
-        if self.page_source.find('div', attrs={'class': "vin-not-found-container"}):
-            msg = self.page_source.find('div', attrs={'class': "vin-not-found-container"}).text.strip()
+        if self.page_source.find("div", attrs={"class": "vin-not-found-container"}):
+            msg = self.page_source.find(
+                "div", attrs={"class": "vin-not-found-container"}
+            ).text.strip()
             self.logger.error(msg)
             raise InvalidVIN(msg)
 
@@ -536,7 +539,7 @@ class IseeCars:
             for element in class_elements(class_name):
                 try:
                     element.click()
-                    time.sleep(random_time() / 2)
+                    time.sleep(random_time())
                 except BaseException:
                     pass
             self.logger.info("Uncollapsed all headings.")
