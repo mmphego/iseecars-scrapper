@@ -486,17 +486,17 @@ class IseeCars:
         )
         assert isinstance(vin_field, str)
         time.sleep(random_time())
-        import IPython; globals().update(locals()); IPython.embed(header='Python Debugger')
 
         _driver = self._send_keys_by_selector(
-            self.driver, "css_selector", vin_field, "WF0DXXGAKDFK41488", enter_key=True
+            self.driver, "css_selector", vin_field, self._vin, enter_key=True
         )
 
         time.sleep(random_time())
         self.logger.info("Entered vin number and accessing page")
         if self.page_source.find('div', attrs={'class': "vin-not-found-container"}):
-            self.logger.error(self.page_source.find('div', attrs={'class': "vin-not-found-container"}).text.strip())
-            raise InvalidVIN
+            msg = self.page_source.find('div', attrs={'class': "vin-not-found-container"}).text.strip()
+            self.logger.error(msg)
+            raise InvalidVIN(msg)
 
         while not self._page_loaded(self.driver):
             time.sleep(random_time())
@@ -768,7 +768,7 @@ if __name__ == "__main__":
     try:
         print(iseecars.get_json())
     except Exception:
-        logger.exception("Error happened!!!")
+        logger.exception("Something weird happened!!!")
         iseecars.close_session()
         raise
     else:
