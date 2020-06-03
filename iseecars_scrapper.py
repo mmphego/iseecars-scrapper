@@ -609,6 +609,7 @@ class IseeCars:
 
         update_data_structure("h2")
 
+        import IPython; globals().update(locals()); IPython.embed(header='Python Debugger')
         # Title (VIN and model)
         self.data_structure["Title"] = [i.strip() for i in self.page_source.find("div", attrs={"id":"vin-head"}).find('h1') if getattr(i, 'name', None) != 'br']
 
