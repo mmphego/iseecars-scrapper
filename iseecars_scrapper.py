@@ -30,7 +30,7 @@ def random_time(start=1, end=5):
     return random.randint(start, end)
 
 
-def get_random_useragent() -> dict:
+def get_random_useragent() -> list:
     try:
         url = "http://51.158.74.109/useragents/?format=json"
         r = requests.get(url=url)
@@ -427,7 +427,10 @@ class IseeCars:
         """Simple selenium webdriver to open a known url"""
         options = Options()
         options.headless = self._headless
-        profile = None
+
+        profile = webdriver.FirefoxProfile()
+        import IPython; globals().update(locals()); IPython.embed(header='Python Debugger')
+        profile.set_preference("general.useragent.override", get_random_useragent())
 
         if isinstance(self._proxies, dict):
             self.logger.info("Accessing URL using alternative proxy settings")
@@ -437,8 +440,10 @@ class IseeCars:
             self.driver = wirewebdriver.Firefox(
                 executable_path=firefox_manager.GeckoDriverManager().install(),
                 options=options,
+                profile=profile,
                 seleniumwire_options=seleniumwire_options,
                 timeout=self._timeout,
+
             )
         # else:
         #     self.logger.info("Accessing URL using proxy settings: {}", self.proxy)
@@ -453,6 +458,7 @@ class IseeCars:
             self.driver = webdriver.Firefox(
                 executable_path=firefox_manager.GeckoDriverManager().install(),
                 options=options,
+                profile=profile,
                 firefox_profile=profile,
                 timeout=self._timeout,
             )
