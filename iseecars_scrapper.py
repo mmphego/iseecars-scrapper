@@ -536,17 +536,36 @@ class IseeCars:
                 return text, value
 
         def uncollapse_all(class_name):
+            # TODO: check to ensure that all elements have been clicks, return bool
             for element in class_elements(class_name):
                 try:
-                    time.sleep(random_time())
-                    element.click()
+                    if element.is_displayed() and element.is_enabled():
+                        element.click()
+                        # EC.element_to_be_clickable(element)
+                        # Check if element is clicked
+                        time.sleep(random_time())
                 except BaseException:
                     pass
             self.logger.info("Uncollapsed all headings.")
 
         def update_data_structure(element):
+            keys_of_interest = [
+                "Best Times to Buy",
+                "Features",
+                "iVIN Report Summary",
+                "Key Specs",
+                "Market Analysis for Dealers",
+                "Market Value & Pricing Info",
+                "Mileage Analysis",
+                "Owner's Manual",
+                "Projected Depreciation",
+                "Safety Ratings",
+                "Similar Cars Comparison",
+            ]
             for i in self.page_source.find_all(element):
-                self.data_structure[re.sub(r"\s+", " ", i.text.strip())] = None
+                key = re.sub(r"\s+", " ", i.text.strip())
+                if key in keys_of_interest:
+                    self.data_structure[key] = None
 
         def list_to_dict(results):
             adict = {}
@@ -693,6 +712,12 @@ class IseeCars:
             self.data_structure[key] = {"notes": notes, "table": table}
         except Exception:
             self.logger.error(f"Failed to update {key!r} data structure")
+
+        # Market Analysis for Dealers
+        key = "Market Analysis for Dealers"
+
+        # Similar Cars Comparison
+        key = "Similar Cars Comparison"
 
         self.logger.info("Updated data structure")
 
