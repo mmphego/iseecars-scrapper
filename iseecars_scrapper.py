@@ -538,7 +538,6 @@ class IseeCars:
                         and EC.element_to_be_clickable(element)
                     ):
                         element.click()
-                        time.sleep(random_time())
                         for i in self.page_source.find_all("h2"):
                             if i.text in element.text:
                                 if not (
@@ -546,6 +545,7 @@ class IseeCars:
                                     in i.find("span").attrs.get("class")
                                 ):
                                     element.click()
+                                    time.sleep(random_time())
 
                 except BaseException:
                     pass
@@ -587,16 +587,19 @@ class IseeCars:
 
         self.logger.info("Updating data structure")
         # Title (VIN and model)
+        key = "Title"
         try:
-            self.data_structure["Title"] = [
+            self.data_structure[key] = [
                 i.strip()
                 for i in self.page_source.find("div", attrs={"id": "vin-head"}).find(
                     "h1"
                 )
                 if getattr(i, "name", None) != "br"
             ]
+            assert self.data_structure[key]
         except Exception:
-            self.logger.error("Failed to update 'Title' data structure")
+            self.logger.error(f"Failed to update {key!r} data structure")
+            import IPython;IPython.embed()
 
         # iVIN Report Summary
         key = "iVIN Report Summary"
@@ -604,16 +607,20 @@ class IseeCars:
             self.data_structure[key] = class_element(
                 "vin-summary.id133_vntbl_outer"
             ).text.split("\n")[1:]
+            assert self.data_structure[key]
         except Exception:
             self.logger.error(f"Failed to update {key!r} data structure")
+            import IPython;IPython.embed()
 
         # Key Specs Table
         key = "Key Specs"
         try:
             results = get_element_contents("align-top.id134_vntbl", "id135_vntbl_col")
             self.data_structure[key] = list_to_dict(results)
+            assert self.data_structure[key]
         except Exception:
             self.logger.error(f"Failed to update {key!r} data structure")
+            import IPython;IPython.embed()
 
         # Safety Ratings
         key = "Safety Ratings"
@@ -628,8 +635,10 @@ class IseeCars:
                 result: rating.get_attribute("style")
                 for result, rating in zip(results, ratings)
             }
+            assert self.data_structure[key]
         except Exception:
             self.logger.error(f"Failed to update {key!r} data structure")
+            import IPython;IPython.embed()
 
         # Features
         key = "Features"
@@ -638,15 +647,19 @@ class IseeCars:
                 feature.text
                 for feature in class_elements("id135_vntbl_col.check.capitalize")
             ]
+            assert self.data_structure[key]
         except Exception:
             self.logger.error(f"Failed to update {key!r} data structure")
+            import IPython;IPython.embed()
 
         # Market Value & Pricing Info
         key = "Market Value & Pricing Info"
         try:
             self.data_structure[key] = class_element("id137_table").text
+            assert self.data_structure[key]
         except Exception:
             self.logger.error(f"Failed to update {key!r} data structure")
+            import IPython;IPython.embed()
 
         # Mileage Analysis
         key = "Mileage Analysis"
@@ -655,8 +668,10 @@ class IseeCars:
                 "vin-condition-panel"
             ).find_element_by_class_name("id137_table")
             self.data_structure[key] = results.text.split("\n")
+            assert self.data_structure[key]
         except Exception:
             self.logger.error(f"Failed to update {key!r} data structure")
+            import IPython;IPython.embed()
 
         #  Owner's Manual
         key = "Owner's Manual"
@@ -673,8 +688,10 @@ class IseeCars:
                     [manual, link.get_attribute("href")]
                 )
             self.data_structure[key] = manual_dict
+            assert self.data_structure[key]
         except Exception:
             self.logger.error(f"Failed to update {key!r} data structure")
+            import IPython;IPython.embed()
 
         # Selling This Vehicle?
         key = "Selling This Vehicle?"
@@ -685,8 +702,10 @@ class IseeCars:
                 and tag["id"] == "table-pricing-choices-slider"
             )
             self.data_structure[key] = [i for i in table_data(table) if len(i) > 1]
+            assert self.data_structure[key]
         except Exception:
             self.logger.error(f"Failed to update {key!r} data structure")
+            import IPython;IPython.embed()
 
         #  Best Times to Buy
         key = "Best Times to Buy"
@@ -695,8 +714,10 @@ class IseeCars:
                 "div", attrs={"id": "vin-besttimetobuy-panel"}
             )[0].p.text.strip()
             self.data_structure[key] = buy_time
+            assert self.data_structure[key]
         except Exception:
             self.logger.error(f"Failed to update {key!r} data structure")
+            import IPython;IPython.embed()
 
         # Projected Depreciation
         key = "Projected Depreciation"
@@ -713,8 +734,10 @@ class IseeCars:
             ).find("table", attrs={"class": "id136_odev"})
             table = [i for i in table_data(table) if len(i) > 1]
             self.data_structure[key] = {"notes": notes, "table": table}
+            assert self.data_structure[key]
         except Exception:
             self.logger.error(f"Failed to update {key!r} data structure")
+            import IPython;IPython.embed()
 
         # Market Analysis for Dealers
         key = "Market Analysis for Dealers"
@@ -728,8 +751,10 @@ class IseeCars:
             )
 
             self.data_structure[key] = {"text": text, "href": link}
+            assert self.data_structure[key]
         except Exception:
             self.logger.error(f"Failed to update {key!r} data structure")
+            import IPython;IPython.embed()
 
         # Similar Cars Comparison
         key = "Similar Cars Comparison"
@@ -739,8 +764,10 @@ class IseeCars:
             ).find("table")
             table = [i for i in table_data(table) if len(i) > 1]
             self.data_structure[key] = {"table": table}
+            assert self.data_structure[key]
         except Exception:
             self.logger.error(f"Failed to update {key!r} data structure")
+            import IPython;IPython.embed()
 
         self.logger.info("Updated data structure")
 
