@@ -529,8 +529,13 @@ class IseeCars:
                 return text, value
 
         def uncollapse_all(class_name):
+            elements = {
+                ".".join(i.parent.parent.attrs["class"])
+                for i in self.page_source.find_all(attrs={"class": "collapse-icon"})
+            }
+
             # TODO: check to ensure that all elements have been clicks, return bool
-            for element in class_elements(class_name):
+            for element in class_elements(elements):
                 try:
                     if (
                         element.is_displayed()
@@ -538,18 +543,17 @@ class IseeCars:
                         and EC.element_to_be_clickable(element)
                     ):
                         element.click()
-                        for i in self.page_source.find_all("h2"):
-                            if i.text in element.text:
-                                if not (
-                                    "collapse-icon-expanded"
-                                    in i.find("span").attrs.get("class")
-                                ):
-                                    element.click()
-                                    time.sleep(random_time())
+                        time.sleep(random_time())
+                        # for i in self.page_source.find_all("h2"):
+                        #     if i.text in element.text:
+                        #         if not (
+                        #             "collapse-icon-expanded"
+                        #             in i.find("span").attrs.get("class")
+                        #         ):
+                        #             element.click()
 
                 except BaseException:
-                    pass
-            self.logger.info("Uncollapsed all headings.")
+                    continue
 
         def update_data_structure(element):
             keys_of_interest = [
@@ -581,8 +585,10 @@ class IseeCars:
         WebDriverWait(self.driver, self._timeout).until(
             EC.presence_of_element_located((By.ID, "vin-head"))
         )
+        time.sleep(random_time(5,10))
 
-        uncollapse_all("id133_vntbl_outer")
+        uncollapse_all()
+
         update_data_structure("h2")
 
         self.logger.info("Updating data structure")
@@ -598,8 +604,8 @@ class IseeCars:
             ]
             assert self.data_structure[key]
         except Exception:
+            uncollapse_all()
             self.logger.error(f"Failed to update {key!r} data structure")
-            import IPython;IPython.embed()
 
         # iVIN Report Summary
         key = "iVIN Report Summary"
@@ -609,8 +615,8 @@ class IseeCars:
             ).text.split("\n")[1:]
             assert self.data_structure[key]
         except Exception:
+            uncollapse_all()
             self.logger.error(f"Failed to update {key!r} data structure")
-            import IPython;IPython.embed()
 
         # Key Specs Table
         key = "Key Specs"
@@ -619,8 +625,8 @@ class IseeCars:
             self.data_structure[key] = list_to_dict(results)
             assert self.data_structure[key]
         except Exception:
+            uncollapse_all()
             self.logger.error(f"Failed to update {key!r} data structure")
-            import IPython;IPython.embed()
 
         # Safety Ratings
         key = "Safety Ratings"
@@ -637,8 +643,8 @@ class IseeCars:
             }
             assert self.data_structure[key]
         except Exception:
+            uncollapse_all()
             self.logger.error(f"Failed to update {key!r} data structure")
-            import IPython;IPython.embed()
 
         # Features
         key = "Features"
@@ -649,8 +655,8 @@ class IseeCars:
             ]
             assert self.data_structure[key]
         except Exception:
+            uncollapse_all()
             self.logger.error(f"Failed to update {key!r} data structure")
-            import IPython;IPython.embed()
 
         # Market Value & Pricing Info
         key = "Market Value & Pricing Info"
@@ -658,8 +664,8 @@ class IseeCars:
             self.data_structure[key] = class_element("id137_table").text
             assert self.data_structure[key]
         except Exception:
+            uncollapse_all()
             self.logger.error(f"Failed to update {key!r} data structure")
-            import IPython;IPython.embed()
 
         # Mileage Analysis
         key = "Mileage Analysis"
@@ -670,8 +676,8 @@ class IseeCars:
             self.data_structure[key] = results.text.split("\n")
             assert self.data_structure[key]
         except Exception:
+            uncollapse_all()
             self.logger.error(f"Failed to update {key!r} data structure")
-            import IPython;IPython.embed()
 
         #  Owner's Manual
         key = "Owner's Manual"
@@ -690,8 +696,8 @@ class IseeCars:
             self.data_structure[key] = manual_dict
             assert self.data_structure[key]
         except Exception:
+            uncollapse_all()
             self.logger.error(f"Failed to update {key!r} data structure")
-            import IPython;IPython.embed()
 
         # Selling This Vehicle?
         key = "Selling This Vehicle?"
@@ -704,8 +710,8 @@ class IseeCars:
             self.data_structure[key] = [i for i in table_data(table) if len(i) > 1]
             assert self.data_structure[key]
         except Exception:
+            uncollapse_all()
             self.logger.error(f"Failed to update {key!r} data structure")
-            import IPython;IPython.embed()
 
         #  Best Times to Buy
         key = "Best Times to Buy"
@@ -716,8 +722,8 @@ class IseeCars:
             self.data_structure[key] = buy_time
             assert self.data_structure[key]
         except Exception:
+            uncollapse_all()
             self.logger.error(f"Failed to update {key!r} data structure")
-            import IPython;IPython.embed()
 
         # Projected Depreciation
         key = "Projected Depreciation"
@@ -736,8 +742,8 @@ class IseeCars:
             self.data_structure[key] = {"notes": notes, "table": table}
             assert self.data_structure[key]
         except Exception:
+            uncollapse_all()
             self.logger.error(f"Failed to update {key!r} data structure")
-            import IPython;IPython.embed()
 
         # Market Analysis for Dealers
         key = "Market Analysis for Dealers"
@@ -753,8 +759,8 @@ class IseeCars:
             self.data_structure[key] = {"text": text, "href": link}
             assert self.data_structure[key]
         except Exception:
+            uncollapse_all()
             self.logger.error(f"Failed to update {key!r} data structure")
-            import IPython;IPython.embed()
 
         # Similar Cars Comparison
         key = "Similar Cars Comparison"
@@ -766,8 +772,8 @@ class IseeCars:
             self.data_structure[key] = {"table": table}
             assert self.data_structure[key]
         except Exception:
+            uncollapse_all()
             self.logger.error(f"Failed to update {key!r} data structure")
-            import IPython;IPython.embed()
 
         self.logger.info("Updated data structure")
 
