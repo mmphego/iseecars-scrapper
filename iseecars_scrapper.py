@@ -529,31 +529,30 @@ class IseeCars:
                 return text, value
 
         def uncollapse_all():
-            elements = {
+            class_names = {
                 ".".join(i.parent.parent.attrs["class"])
                 for i in self.page_source.find_all(attrs={"class": "collapse-icon"})
             }
+            for class_name in class_names:
+                for element in class_elements(class_name):
+                    try:
+                        if (
+                            element.is_displayed()
+                            and element.is_enabled()
+                            and EC.element_to_be_clickable(element)
+                        ):
+                            element.click()
+                            time.sleep(random_time())
+                            # for i in self.page_source.find_all("h2"):
+                            #     if i.text in element.text:
+                            #         if not (
+                            #             "collapse-icon-expanded"
+                            #             in i.find("span").attrs.get("class")
+                            #         ):
+                            #             element.click()
 
-            # TODO: check to ensure that all elements have been clicks, return bool
-            for element in class_elements(elements):
-                try:
-                    if (
-                        element.is_displayed()
-                        and element.is_enabled()
-                        and EC.element_to_be_clickable(element)
-                    ):
-                        element.click()
-                        time.sleep(random_time())
-                        # for i in self.page_source.find_all("h2"):
-                        #     if i.text in element.text:
-                        #         if not (
-                        #             "collapse-icon-expanded"
-                        #             in i.find("span").attrs.get("class")
-                        #         ):
-                        #             element.click()
-
-                except BaseException:
-                    continue
+                    except BaseException:
+                        continue
 
         def update_data_structure(element):
             keys_of_interest = [
