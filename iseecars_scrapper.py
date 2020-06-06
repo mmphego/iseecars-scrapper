@@ -528,7 +528,7 @@ class IseeCars:
                 value = class_element(element_1).find_elements_by_class_name(element_2)
                 return text, value
 
-        def uncollapse_all(class_name):
+        def uncollapse_all():
             elements = {
                 ".".join(i.parent.parent.attrs["class"])
                 for i in self.page_source.find_all(attrs={"class": "collapse-icon"})
