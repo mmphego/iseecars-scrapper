@@ -388,15 +388,6 @@ class IseeCars:
                 seleniumwire_options=seleniumwire_options,
                 timeout=self._timeout,
             )
-        # else:
-        #     self.logger.info("Accessing URL using proxy settings: {}", self.proxy)
-        #     profile = self._setup_proxy()
-        #     self.driver = webdriver.Firefox(
-        #         executable_path=firefox_manager.GeckoDriverManager().install(),
-        #         options=options,
-        #         firefox_profile=profile,
-        #         timeout=self._timeout,
-        #     )
         else:
             profile = webdriver.FirefoxProfile()
             profile.set_preference("general.useragent.override", get_random_useragent())
@@ -432,15 +423,17 @@ class IseeCars:
 
     @staticmethod
     def _send_keys_by_selector(driver, find_by, selector, input_keys, enter_key=False):
-        _driver = getattr(driver, f"find_element_by_{find_by}")(selector)
-        _driver.click()
+        driver = getattr(driver, f"find_element_by_{find_by}")(selector)
+        if not (driver.is_displayed() and driver.is_enabled()):
+            self.logger.error("Failed to find the element.")
+        driver.click()
         time.sleep(random_time())
-        _driver.send_keys(input_keys)
+        driver.send_keys(input_keys)
         time.sleep(random_time())
         if enter_key:
             time.sleep(random_time())
-            _driver.send_keys(Keys.ENTER)
-        return _driver
+            driver.send_keys(Keys.ENTER)
+        return driver
 
     def login(self):
         if self._password and self._username:
@@ -539,11 +532,21 @@ class IseeCars:
             # TODO: check to ensure that all elements have been clicks, return bool
             for element in class_elements(class_name):
                 try:
-                    if element.is_displayed() and element.is_enabled():
+                    if (
+                        element.is_displayed()
+                        and element.is_enabled()
+                        and EC.element_to_be_clickable(element)
+                    ):
                         element.click()
-                        # EC.element_to_be_clickable(element)
-                        # Check if element is clicked
                         time.sleep(random_time())
+                        for i in self.page_source.find_all("h2"):
+                            if i.text in element.text:
+                                if not (
+                                    "collapse-icon-expanded"
+                                    in i.find("span").attrs.get("class")
+                                ):
+                                    element.click()
+
                 except BaseException:
                     pass
             self.logger.info("Uncollapsed all headings.")
@@ -578,8 +581,8 @@ class IseeCars:
         WebDriverWait(self.driver, self._timeout).until(
             EC.presence_of_element_located((By.ID, "vin-head"))
         )
-        uncollapse_all("id133_vntbl_outer")
 
+        uncollapse_all("id133_vntbl_outer")
         update_data_structure("h2")
 
         self.logger.info("Updating data structure")
@@ -715,9 +718,29 @@ class IseeCars:
 
         # Market Analysis for Dealers
         key = "Market Analysis for Dealers"
+        try:
+            element = self.page_source.find(
+                "div", attrs={"id": "panel-vin-market-analysis"}
+            )
+            text = element.a.text.strip()
+            link = "https://www.iseecars.com" + "".join(
+                element.a.get_attribute_list("href")
+            )
+
+            self.data_structure[key] = {"text": text, "href": link}
+        except Exception:
+            self.logger.error(f"Failed to update {key!r} data structure")
 
         # Similar Cars Comparison
         key = "Similar Cars Comparison"
+        try:
+            table = self.page_source.find(
+                "div", attrs={"id": "vin-similar-panel"}
+            ).find("table")
+            table = [i for i in table_data(table) if len(i) > 1]
+            self.data_structure[key] = {"table": table}
+        except Exception:
+            self.logger.error(f"Failed to update {key!r} data structure")
 
         self.logger.info("Updated data structure")
 
