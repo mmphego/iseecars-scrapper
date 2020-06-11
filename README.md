@@ -1,9 +1,9 @@
 
-# VIN Scrapper
+# iseecars scrapper
 
 [![Python](https://img.shields.io/badge/Python-3.6%2B-red.svg)](https://www.python.org/downloads/)
 
-Web scrapping tool for retrieving VIN number by licence and location
+Web scrapping tool for retrieving vehicle information from [iseecars.com](iseecars.com)
 
 # Installation
 
@@ -17,78 +17,54 @@ Before you install ensure that `geckodriver` for Firefox is installed.
 To install Vehicle History Reports, run this command in your bash terminal:
 
 ```python
-    sudo pip install .
+    sudo pip install -Ur requirements.txt
 ```
-
-This is the preferred method to install Vehicle History Reports, as it will always install the most recent stable release.
 
 # Usage
 
 ```bash
-usage: scrapper.py [-h] --url URL --licence-number LICENCE_NUMBER --location LOCATION
-                   [--no-headless] [--no-json-output] [--proxy-host HOST]
-                   [--proxy-port PORT] [--proxy-username USERNAME]
-                   [--proxy-password PASSWORD] [--alt-proxy] [--web_username WEB_USERNAME]
-                   [--web_password WEB_PASSWORD] [--loglevel LOG_LEVEL]
+usage: iseecars_scrapper.py [-h] --vin VIN [--proxy-host PROXY_HOST] [--proxy-port PROXY_PORT] [--proxy-username PROXY_USERNAME] [--proxy-password PROXY_PASSWORD] --username USERNAME
+                            --password PASSWORD [--to-json] [--headless]
 
-Web scrapping tool for Vehicle information by VIN number
+Web scrapping tool for Vehicle information from URL: https://www.vehiclehistory.com
 
 optional arguments:
   -h, --help            show this help message and exit
-  --url URL             Accessing URL
-  --licence-number LICENCE_NUMBER
-                        A licence number.
-  --location LOCATION   A location where licence is registered.
-                          Example: --location CA [ie California].
-  --no-headless         Open browser [Debugging mode].
-  --no-json-output      Output as json.
-  --proxy-host HOST     Proxy address. [Optional]
-  --proxy-port PORT     Proxy port. [Optional]
-  --proxy-username USERNAME
+  --vin VIN             VIN number.
+  --proxy-host PROXY_HOST
+                        Proxy address. [Optional]
+  --proxy-port PROXY_PORT
+                        Proxy port. [Optional]
+  --proxy-username PROXY_USERNAME
                         Username to access proxy. [Optional]
-  --proxy-password PASSWORD
+  --proxy-password PROXY_PASSWORD
                         Password to access proxy. [Optional]
-  --alt-proxy           Alternative proxy method [Optional]
-  --web_username WEB_USERNAME
-                        Username to access the website (if any).
-  --web_password WEB_PASSWORD
-                        Password to access the website (if any).
-  --loglevel LOG_LEVEL  log level to use, default [INFO], options [INFO, DEBUG, ERROR]
+  --username USERNAME   Username for iseecars.com
+  --password PASSWORD   Password for iseecars.com
+  --to-json             Save webpage content to json
+  --headless            Open browser [Debugging mode].
 ```
 
 Example:
 
 **No Proxy**
 ```
-scrapper.py \
---url https://www.vehiclehistory.com/license-plate-search \
---licence-number 33878M1 \
---location CA
+python iseecars_scrapper.py \
+--vin WBAFR7C57CC811956 \
+--username support@vehiclehistory.report \
+--password fak86iak \
+--to-json
 ```
 
-**Proxy auth**
+**Through Proxy**
 ```
-scrapper.py \
---url https://www.vehiclehistory.com/license-plate-search \
---licence-number 33878M1 \
---location CA \
---proxy-host 23.229.37.50 \
---proxy-port 34223 \
+python iseecars_scrapper.py \
+--vin WBAFR7C57CC811956 \
+--username support@vehiclehistory.report \
+--password fak86iak \
+--proxy-host 5.181.41.31 \
+--proxy-port 12333 \
 --proxy-username netkingz9 \
---proxy-password test123
+--proxy-password test123465 \
+--to-json
 ```
-
-**Proxy auth (Fallback)**
-```
-scrapper.py \
---url https://www.vehiclehistory.com/license-plate-search \
---licence-number 33878M1 \
---location CA \
---proxy-host 23.229.37.50 \
---proxy-port 34223 \
---proxy-username netkingz9 \
---proxy-password test123 \
---alt-proxy
-```
-
-

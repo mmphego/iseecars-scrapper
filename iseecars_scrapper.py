@@ -821,9 +821,6 @@ def arg_parser():
     parser.add_argument("--username", required=True, help="Username for iseecars.com")
     parser.add_argument("--password", required=True, help="Password for iseecars.com")
     parser.add_argument(
-        "--save-page", action="store_true", help="Save webpage to file/html."
-    )
-    parser.add_argument(
         "--to-json", action="store_true", help="Save webpage content to json"
     )
     parser.add_argument(
